@@ -119,9 +119,11 @@ static void process_buffer(void)
 			color = 'b';
 			break;
 		case '0':
+			printk(KERN_ALERT "gpio_set_value: %d 0\n", pin(color));
 			gpio_set_value(pin(color), 0);
 			break;
 		case '1':
+			printk(KERN_ALERT "gpio_set_value: %d 1\n", pin(color));
 			gpio_set_value(pin(color), 1);
 			break;
 		default:
@@ -179,16 +181,16 @@ static struct file_operations my_fileops = {
 static struct cdev my_cdev;
 static struct device *my_device;
 
-static int virtualdev_init(void)
+static int spyy_init(void)
 {
 	int err;
 
 	// 1 class
-	dev_class  = class_create(THIS_MODULE, "block-class");
+	dev_class  = class_create(THIS_MODULE, "spyyclass");
 	if(IS_ERR(dev_class)) return -1;
 
 	// 2 char device region
-	err = alloc_chrdev_region(&my_dev, 0, 1, "block-region");
+	err = alloc_chrdev_region(&my_dev, 0, 1, "spyyregion");
 	if (err) goto alloc_region_err;
 	// 3 initialize device
 	cdev_init(&my_cdev, &my_fileops);
@@ -197,21 +199,31 @@ static int virtualdev_init(void)
 	err = cdev_add(&my_cdev, my_dev, 1);
 	if(err) goto add_err;
 	// 5 create device
-	my_device = device_create(dev_class, NULL, my_dev, NULL, "block_dev");
+	my_device = device_create(dev_class, NULL, my_dev, NULL, "spyydev");
 	if(IS_ERR(my_device)) goto device_err;
 
 	my_gpio_init();
 
+	printk(KERN_ALERT "spyydev init ok \n");
+
+
 	return 0;
 
-	device_err: device_destroy(dev_class, my_dev); err = -1;
-	add_err: cdev_del(&my_cdev);
-	alloc_region_err: unregister_chrdev_region(my_dev, 1);
+	device_err:
+	device_destroy(dev_class, my_dev);
+	printk(KERN_ALERT "spyydev init: device_err \n");
+	add_err: 
+	cdev_del(&my_cdev);
+	printk(KERN_ALERT "spyydev init: add_err\n");
+	alloc_region_err:
+	unregister_chrdev_region(my_dev, 1);
+	printk(KERN_ALERT "spyydev init: alloc_region_err\n");
 
-    return err;
+
+    	return -1;
 }
 
-static void virtualdev_exit(void)
+static void spyy_exit(void)
 {
 	device_destroy(dev_class, my_dev);
 	cdev_del(&my_cdev);
@@ -221,8 +233,8 @@ static void virtualdev_exit(void)
 	my_gpio_free();
 }
 
-module_init(virtualdev_init);
-module_exit(virtualdev_exit);
+module_init(spyy_init);
+module_exit(spyy_exit);
 
 
 
